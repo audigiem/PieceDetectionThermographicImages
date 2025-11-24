@@ -1,16 +1,15 @@
 {
-  "timestamp": "2025-11-24T12:56:02.022245",
+  "timestamp": "2025-11-24T18:50:08.244516",
   "total_images": 7,
   "successful": 7,
   "failed": 0,
-  "total_circles_detected": 835,
+  "total_circles_detected": 19,
   "results": [
     {
       "filename": "image1.png",
-      "method": "hough",
       "status": "success",
       "output_path": "Results/images/detected_image1.png",
-      "circle_count": 128,
-      "mean_radius": 103.2890625,
-      "std_radius": 59.57730696642047,
+      "circle_count": 3,
+      "mean_radius": 133.33333333333334,
+      "std_radius": 11.556623882239812,
       "min_radius": 

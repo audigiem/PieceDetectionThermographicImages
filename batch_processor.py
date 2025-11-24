@@ -1,395 +1,308 @@
 """
-Batch Processing Script for Circle Detection in Thermal Images
-This script processes all images in the Images folder and generates comprehensive results.
+Improved Circle Detection for Thermal Images
+This version includes better filtering to detect only COMPLETE circles
 """
 
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-import json
-from datetime import datetime
-import sys
-
-# Import our detection modules
-from circle_detection import CircleDetector
-from advanced_circle_detection import AdvancedCircleDetector
 
 
-class BatchProcessor:
-    """Batch process multiple thermal images for circle detection."""
+class ImprovedCircleDetector:
+    """Improved circle detector with strict filtering for complete circles only."""
 
-    def __init__(self, input_dir, output_dir='Results'):
+    def __init__(self, image_path):
+        """Initialize with image path."""
+        self.image_path = image_path
+        self.original = cv2.imread(str(image_path))
+        if self.original is None:
+            raise ValueError(f"Cannot load image: {image_path}")
+
+        self.gray = cv2.cvtColor(self.original, cv2.COLOR_BGR2GRAY)
+        self.result = self.original.copy()
+        self.height, self.width = self.gray.shape
+
+    def preprocess_thermal_image(self):
+        """Enhanced preprocessing for thermal images."""
+        # Strong Gaussian blur to reduce noise
+        blurred = cv2.GaussianBlur(self.gray, (15, 15), 3)
+
+        # CLAHE for contrast enhancement
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(blurred)
+
+        return enhanced
+
+    def is_circle_complete(self, x, y, radius, margin=10):
         """
-        Initialize batch processor.
+        Check if a circle is completely within the image bounds.
 
         Args:
-            input_dir: Directory containing input images
-            output_dir: Directory for output results
-        """
-        self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
-
-        # Create subdirectories
-        (self.output_dir / 'images').mkdir(exist_ok=True)
-        (self.output_dir / 'visualizations').mkdir(exist_ok=True)
-
-        self.results = []
-
-    def process_all_images(self, method='auto'):
-        """
-        Process all images in the input directory.
-
-        Args:
-            method: Detection method ('hough', 'advanced', 'auto')
-        """
-        image_files = sorted(self.input_dir.glob('*.png'))
-        image_files.extend(sorted(self.input_dir.glob('*.jpg')))
-
-        if not image_files:
-            print(f"No images found in {self.input_dir}")
-            return
-
-        print(f"\nProcessing {len(image_files)} images...")
-        print("="*70)
-
-        for idx, img_path in enumerate(image_files, 1):
-            print(f"\n[{idx}/{len(image_files)}] Processing: {img_path.name}")
-
-            try:
-                result = self.process_single_image(img_path, method)
-                self.results.append(result)
-
-                # Print summary for this image
-                print(f"    ✓ Detected {result['circle_count']} circles")
-                if result['circle_count'] > 0:
-                    print(f"    ✓ Mean radius: {result['mean_radius']:.1f} px")
-                    print(f"    ✓ Saved to: {result['output_path'].name}")
-
-            except Exception as e:
-                print(f"    ✗ Error: {e}")
-                self.results.append({
-                    'filename': img_path.name,
-                    'status': 'error',
-                    'error': str(e)
-                })
-
-        # Generate summary report
-        self.generate_report()
-        self.create_comparison_visualization()
-
-        print("\n" + "="*70)
-        print("Batch processing complete!")
-        print(f"Results saved to: {self.output_dir}")
-
-    def process_single_image(self, image_path, method='auto'):
-        """
-        Process a single image with the specified method.
-
-        Args:
-            image_path: Path to image
-            method: Detection method
+            x, y: Circle center
+            radius: Circle radius
+            margin: Margin from image edges
 
         Returns:
-            Dictionary with results
+            True if circle is complete, False otherwise
         """
-        if method == 'auto':
-            # Try both methods and use the one with better results
-            circles_hough = self._detect_hough(image_path)
-            circles_advanced = self._detect_advanced(image_path)
+        x = int(x)
+        y = int(y)
+        if (x - radius < margin or
+            x + radius > self.width - margin or
+            y - radius < margin or
+            y + radius > self.height - margin):
+            return False
+        return True
 
-            # Choose method with more reasonable detections
-            if circles_hough is not None and circles_advanced is not None:
-                if 0 < len(circles_advanced) < len(circles_hough):
-                    method = 'advanced'
-                else:
-                    method = 'hough'
-            elif circles_advanced is not None and len(circles_advanced) > 0:
-                method = 'advanced'
-            else:
-                method = 'hough'
+    def calculate_circle_quality(self, x, y, radius):
+        """
+        Calculate quality score for a detected circle based on edge strength.
 
-        # Detect with chosen method
-        if method == 'hough':
-            detector = CircleDetector(image_path)
-            circles = detector.detect_circles_hough(
-                min_dist=30, param1=50, param2=25,
-                min_radius=5, max_radius=200
-            )
+        Args:
+            x, y: Circle center
+            radius: Circle radius
 
-            if circles is not None and len(circles.shape) == 3:
-                circles_list = [(int(c[0]), int(c[1]), int(c[2]))
-                               for c in circles[0]]
-            else:
-                circles_list = []
+        Returns:
+            Quality score (0-1)
+        """
+        # Get edges
+        enhanced = self.preprocess_thermal_image()
+        edges = cv2.Canny(enhanced, 50, 150)
 
-        else:  # advanced
-            detector = AdvancedCircleDetector(image_path)
-            circles_list = detector.ensemble_detection(
-                methods=['hough', 'canny', 'blob']
-            )
+        # Sample points along the circle perimeter
+        num_points = 36  # Sample 36 points around the circle
+        angles = np.linspace(0, 2*np.pi, num_points, endpoint=False)
 
-        # Draw circles
-        if len(circles_list) > 0:
-            detector.draw_circles(circles_list if method == 'hough' else circles_list)
+        edge_votes = 0
+        for angle in angles:
+            # Calculate point on circle perimeter
+            px = int(x + radius * np.cos(angle))
+            py = int(y + radius * np.sin(angle))
 
-            # Add annotations
-            for idx, circle in enumerate(circles_list, 1):
-                x, y = circle[0], circle[1]
-                cv2.putText(detector.result_image if method == 'hough' else detector.result,
-                           str(idx), (x - 10, y - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+            # Check if point is within bounds
+            if 0 <= px < self.width and 0 <= py < self.height:
+                # Check if there's an edge at this point (with small tolerance)
+                region = edges[max(0, py-2):min(self.height, py+3),
+                             max(0, px-2):min(self.width, px+3)]
+                if np.any(region > 0):
+                    edge_votes += 1
 
-        # Save result
-        output_path = self.output_dir / 'images' / f"detected_{image_path.name}"
-        result_img = detector.result_image if method == 'hough' else detector.result
-        cv2.imwrite(str(output_path), result_img)
+        # Calculate quality as ratio of edge points found
+        quality = edge_votes / num_points
+        return quality
 
-        # Calculate statistics
-        if len(circles_list) > 0:
-            radii = [c[2] for c in circles_list]
-            stats = {
-                'circle_count': len(circles_list),
-                'mean_radius': np.mean(radii),
-                'std_radius': np.std(radii),
-                'min_radius': np.min(radii),
-                'max_radius': np.max(radii),
-                'circles': circles_list
-            }
-        else:
-            stats = {
-                'circle_count': 0,
-                'circles': []
-            }
+    def remove_overlapping_circles(self, circles, overlap_threshold=0.3):
+        """
+        Remove overlapping circles, keeping the ones with better quality.
 
-        result = {
-            'filename': image_path.name,
-            'method': method,
-            'status': 'success',
-            'output_path': output_path,
-            **stats
-        }
+        Args:
+            circles: List of (x, y, radius, quality) tuples
+            overlap_threshold: Maximum allowed overlap ratio
 
-        return result
+        Returns:
+            Filtered list of circles
+        """
+        if len(circles) == 0:
+            return []
 
-    def _detect_hough(self, image_path):
-        """Helper to detect with Hough method."""
-        try:
-            detector = CircleDetector(image_path)
-            return detector.detect_circles_hough()
-        except:
-            return None
+        # Sort by quality (descending)
+        circles = sorted(circles, key=lambda c: c[3], reverse=True)
 
-    def _detect_advanced(self, image_path):
-        """Helper to detect with advanced method."""
-        try:
-            detector = AdvancedCircleDetector(image_path)
-            return detector.ensemble_detection()
-        except:
-            return None
+        keep = []
+        for circle in circles:
+            x1, y1, r1, q1 = circle
 
-    def generate_report(self):
-        """Generate a comprehensive JSON report."""
-        report = {
-            'timestamp': datetime.now().isoformat(),
-            'total_images': len(self.results),
-            'successful': sum(1 for r in self.results if r.get('status') == 'success'),
-            'failed': sum(1 for r in self.results if r.get('status') == 'error'),
-            'total_circles_detected': sum(r.get('circle_count', 0) for r in self.results),
-            'results': []
-        }
+            # Check against all kept circles
+            overlap = False
+            for kept_circle in keep:
+                x2, y2, r2, q2 = kept_circle
 
-        for result in self.results:
-            if result.get('status') == 'success':
-                # Remove circles list from report (too verbose)
-                result_copy = result.copy()
-                if 'circles' in result_copy:
-                    result_copy['circles'] = len(result_copy['circles'])
-                if 'output_path' in result_copy:
-                    result_copy['output_path'] = str(result_copy['output_path'])
-                report['results'].append(result_copy)
-            else:
-                report['results'].append(result)
+                # Calculate distance between centers
+                dist = np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
-        # Save report
-        report_path = self.output_dir / 'detection_report.json'
-        with open(report_path, 'w') as f:
-            json.dump(report, f, indent=2)
+                # Check for overlap
+                if dist < (r1 + r2) * (1 - overlap_threshold):
+                    overlap = True
+                    break
 
-        print(f"\n✓ Report saved to: {report_path}")
+            if not overlap:
+                keep.append(circle)
 
-        # Also create a human-readable text report
-        self._generate_text_report(report)
+        return keep
 
-    def _generate_text_report(self, report):
-        """Generate human-readable text report."""
-        report_path = self.output_dir / 'detection_report.txt'
+    def detect_complete_circles(self, min_radius=50, max_radius=200,
+                                quality_threshold=0.4):
+        """
+        Detect only complete circles with high quality.
 
-        with open(report_path, 'w') as f:
-            f.write("="*70 + "\n")
-            f.write("CIRCLE DETECTION REPORT\n")
-            f.write("="*70 + "\n\n")
-            f.write(f"Generated: {report['timestamp']}\n")
-            f.write(f"Total images processed: {report['total_images']}\n")
-            f.write(f"Successful: {report['successful']}\n")
-            f.write(f"Failed: {report['failed']}\n")
-            f.write(f"Total circles detected: {report['total_circles_detected']}\n\n")
+        Args:
+            min_radius: Minimum circle radius
+            max_radius: Maximum circle radius
+            quality_threshold: Minimum quality score (0-1)
 
-            f.write("="*70 + "\n")
-            f.write("DETAILED RESULTS\n")
-            f.write("="*70 + "\n\n")
+        Returns:
+            List of detected complete circles
+        """
+        enhanced = self.preprocess_thermal_image()
 
-            for result in report['results']:
-                if result.get('status') == 'success':
-                    f.write(f"File: {result['filename']}\n")
-                    f.write(f"  Method: {result['method']}\n")
-                    f.write(f"  Circles detected: {result['circle_count']}\n")
-                    if result['circle_count'] > 0:
-                        f.write(f"  Mean radius: {result['mean_radius']:.2f} px\n")
-                        f.write(f"  Std radius: {result['std_radius']:.2f} px\n")
-                        f.write(f"  Radius range: [{result['min_radius']}, {result['max_radius']}] px\n")
-                    f.write("\n")
-                else:
-                    f.write(f"File: {result['filename']}\n")
-                    f.write(f"  Status: ERROR - {result.get('error', 'Unknown error')}\n\n")
+        # Use more strict Hough parameters
+        circles = cv2.HoughCircles(
+            enhanced,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=80,  # Increased minimum distance between circles
+            param1=100,   # Higher Canny threshold
+            param2=40,    # Higher accumulator threshold
+            minRadius=min_radius,
+            maxRadius=max_radius
+        )
 
-        print(f"✓ Text report saved to: {report_path}")
+        if circles is None:
+            return []
 
-    def create_comparison_visualization(self):
-        """Create a comparison visualization of all results."""
-        successful_results = [r for r in self.results if r.get('status') == 'success']
+        circles = np.uint16(np.around(circles[0]))
 
-        if not successful_results:
-            print("No successful results to visualize")
-            return
+        # Filter circles
+        valid_circles = []
 
-        n_images = len(successful_results)
-        cols = min(3, n_images)
-        rows = (n_images + cols - 1) // cols
+        for circle in circles:
+            x, y, radius = circle
 
-        fig, axes = plt.subplots(rows, cols, figsize=(5*cols, 5*rows))
+            # Check if circle is complete (within image bounds)
+            if not self.is_circle_complete(x, y, radius):
+                continue
 
-        if n_images == 1:
-            axes = np.array([axes])
-        axes = axes.flatten()
+            # Calculate quality score
+            quality = self.calculate_circle_quality(x, y, radius)
 
-        for idx, result in enumerate(successful_results):
-            img_path = result['output_path']
-            img = cv2.imread(str(img_path))
+            # Keep only high-quality circles
+            if quality >= quality_threshold:
+                valid_circles.append((int(x), int(y), int(radius), quality))
 
-            if img is not None:
-                img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                axes[idx].imshow(img_rgb)
-                axes[idx].set_title(f"{result['filename']}\n{result['circle_count']} circles")
-                axes[idx].axis('off')
+        # Remove overlapping circles
+        valid_circles = self.remove_overlapping_circles(valid_circles, overlap_threshold=0.3)
 
-        # Hide unused subplots
-        for idx in range(n_images, len(axes)):
-            axes[idx].axis('off')
+        # Return without quality scores
+        return [(x, y, r) for x, y, r, q in valid_circles]
+
+    def draw_circles(self, circles, color=(0, 255, 0), thickness=3):
+        """Draw detected circles on result image."""
+        for idx, (x, y, radius) in enumerate(circles, 1):
+            # Draw circle outline
+            cv2.circle(self.result, (x, y), radius, color, thickness)
+            # Draw center point
+            cv2.circle(self.result, (x, y), 5, (0, 0, 255), -1)
+            # Add number annotation
+            cv2.putText(self.result, str(idx), (x - 15, y - 15),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 2)
+
+    def visualize_results(self, circles):
+        """Display original and result side by side."""
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+        # Original
+        axes[0].imshow(cv2.cvtColor(self.original, cv2.COLOR_BGR2RGB))
+        axes[0].set_title('Original Thermal Image')
+        axes[0].axis('off')
+
+        # Result
+        axes[1].imshow(cv2.cvtColor(self.result, cv2.COLOR_BGR2RGB))
+        axes[1].set_title(f'Detected Complete Circles: {len(circles)}')
+        axes[1].axis('off')
 
         plt.tight_layout()
-
-        viz_path = self.output_dir / 'visualizations' / 'all_results.png'
-        plt.savefig(viz_path, dpi=150, bbox_inches='tight')
-        print(f"✓ Comparison visualization saved to: {viz_path}")
-
-        # Show if requested
-        # plt.show()
-        plt.close()
-
-        # Create summary statistics plot
-        self._create_statistics_plot()
-
-    def _create_statistics_plot(self):
-        """Create statistical plots of detection results."""
-        successful_results = [r for r in self.results
-                            if r.get('status') == 'success' and r.get('circle_count', 0) > 0]
-
-        if not successful_results:
-            return
-
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-        # 1. Circles per image
-        filenames = [r['filename'] for r in successful_results]
-        counts = [r['circle_count'] for r in successful_results]
-
-        axes[0, 0].bar(range(len(filenames)), counts, color='steelblue')
-        axes[0, 0].set_xlabel('Image')
-        axes[0, 0].set_ylabel('Number of Circles')
-        axes[0, 0].set_title('Circles Detected per Image')
-        axes[0, 0].set_xticks(range(len(filenames)))
-        axes[0, 0].set_xticklabels(filenames, rotation=45, ha='right')
-
-        # 2. Mean radius per image
-        mean_radii = [r['mean_radius'] for r in successful_results]
-
-        axes[0, 1].bar(range(len(filenames)), mean_radii, color='coral')
-        axes[0, 1].set_xlabel('Image')
-        axes[0, 1].set_ylabel('Mean Radius (px)')
-        axes[0, 1].set_title('Mean Circle Radius per Image')
-        axes[0, 1].set_xticks(range(len(filenames)))
-        axes[0, 1].set_xticklabels(filenames, rotation=45, ha='right')
-
-        # 3. Distribution of circle counts
-        axes[1, 0].hist(counts, bins=max(counts), color='lightgreen', edgecolor='black')
-        axes[1, 0].set_xlabel('Number of Circles')
-        axes[1, 0].set_ylabel('Frequency')
-        axes[1, 0].set_title('Distribution of Circle Counts')
-
-        # 4. Distribution of all radii
-        all_radii = []
-        for result in successful_results:
-            for circle in result.get('circles', []):
-                all_radii.append(circle[2])
-
-        if all_radii:
-            axes[1, 1].hist(all_radii, bins=20, color='plum', edgecolor='black')
-            axes[1, 1].set_xlabel('Radius (px)')
-            axes[1, 1].set_ylabel('Frequency')
-            axes[1, 1].set_title('Distribution of All Circle Radii')
-
-        plt.tight_layout()
-
-        stats_path = self.output_dir / 'visualizations' / 'statistics.png'
-        plt.savefig(stats_path, dpi=150, bbox_inches='tight')
-        print(f"✓ Statistics plot saved to: {stats_path}")
-        plt.close()
+        plt.show()
 
 
-def main():
-    """Main entry point for batch processing."""
-    print("\n" + "="*70)
-    print("CIRCLE DETECTION IN THERMAL IMAGES - BATCH PROCESSOR")
+def process_image(image_path, save=True, display=True):
+    """
+    Process a single image to detect complete circles.
+
+    Args:
+        image_path: Path to thermal image
+        save: Whether to save result
+        display: Whether to display result
+    """
+    print(f"\nProcessing: {Path(image_path).name}")
+
+    detector = ImprovedCircleDetector(image_path)
+
+    # Detect complete circles
+    circles = detector.detect_complete_circles(
+        min_radius=50,      # Adjust based on expected circle size
+        max_radius=200,     # Adjust based on expected circle size
+        quality_threshold=0.1  # Minimum quality (0.4 = 40% of perimeter must have edges)
+    )
+
+    print(f"✓ Detected {len(circles)} complete circles")
+
+    if len(circles) > 0:
+        detector.draw_circles(circles)
+
+        # Print details
+        radii = [r for _, _, r in circles]
+        print(f"  Mean radius: {np.mean(radii):.1f} px")
+        print(f"  Radius range: [{min(radii)}, {max(radii)}] px")
+
+    # Save result
+    if save:
+        output_dir = Path('Results/images')
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"detected_{Path(image_path).name}"
+        cv2.imwrite(str(output_path), detector.result)
+        print(f"  Saved to: {output_path}")
+
+    # Display
+    if display:
+        detector.visualize_results(circles)
+
+    return detector, circles
+
+
+def process_all_images(images_dir='Images', save=True):
+    """Process all images in directory."""
+    images_path = Path(images_dir)
+    image_files = sorted(images_path.glob('*.png'))
+    image_files.extend(sorted(images_path.glob('*.jpg')))
+
+    if not image_files:
+        print(f"No images found in {images_dir}")
+        return
+
     print("="*70)
-
-    # Configuration
-    input_dir = "Images"
-    output_dir = "Results"
-
-    # Check if input directory exists
-    if not Path(input_dir).exists():
-        print(f"\n✗ Error: Input directory '{input_dir}' not found!")
-        print("Please ensure the Images directory exists with thermal images.")
-        sys.exit(1)
-
-    # Create processor and run
-    processor = BatchProcessor(input_dir, output_dir)
-    processor.process_all_images(method='auto')
-
-    print("\n" + "="*70)
-    print("PROCESSING COMPLETE")
+    print("IMPROVED CIRCLE DETECTION - COMPLETE CIRCLES ONLY")
     print("="*70)
-    print(f"\nCheck the '{output_dir}' folder for:")
-    print("  • Detected images with circles marked")
-    print("  • JSON report with detailed statistics")
-    print("  • Text report (human-readable)")
-    print("  • Comparison visualizations")
-    print("  • Statistical analysis plots")
-    print()
+    print(f"\nProcessing {len(image_files)} images...\n")
+
+    results = []
+
+    for idx, img_path in enumerate(image_files, 1):
+        print(f"[{idx}/{len(image_files)}]", end=" ")
+        try:
+            detector, circles = process_image(img_path, save=save, display=False)
+            results.append({
+                'filename': img_path.name,
+                'count': len(circles),
+                'circles': circles
+            })
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # Summary
+    print("\n" + "="*70)
+    print("SUMMARY")
+    print("="*70)
+    for result in results:
+        print(f"{result['filename']:20} -> {result['count']} complete circles")
+
+    print(f"\nTotal circles detected: {sum(r['count'] for r in results)}")
 
 
+# Example usage
 if __name__ == "__main__":
-    main()
+    # Process single image with visualization
+    # process_image('Images/image1.png', save=True, display=True)
 
+    # Process all images
+    process_all_images('Images', save=True)
