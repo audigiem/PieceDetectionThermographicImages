@@ -83,6 +83,8 @@ class ImprovedCircleDetector:
         
         # Optional: visualize all masks
         if show:
+            if not Path('Results/masks').exists():
+                Path('Results/masks').mkdir(parents=True, exist_ok=True)
             fig, axes = plt.subplots(2, 3, figsize=(18, 12))
             
             axes[0, 0].imshow(hsv_mask, cmap='gray')
@@ -111,7 +113,9 @@ class ImprovedCircleDetector:
             axes[1, 2].axis('off')
             
             plt.tight_layout()
-            plt.show()
+            plt.savefig(Path('Results/masks') / f"roi_masks_{Path(self.image_path).name}")
+            plt.close()
+            print(f"  Saved ROI mask visualizations to: Results/masks/roi_masks_{Path(self.image_path).name}")
 
         return combined_mask
 
@@ -120,7 +124,7 @@ class ImprovedCircleDetector:
         return self.define_ROI_thermal(show)
 
 
-    def is_circle_complete(self, x, y, radius, mask, margin=10):
+    def is_circle_complete(self, x, y, radius, mask, margin=-10):
         """
         Check if a circle is completely within the image bounds.
 
@@ -151,7 +155,9 @@ class ImprovedCircleDetector:
         intersection_area = cv2.countNonZero(intersection)
         if intersection_area < circle_area * 0.95:  # At least 95% within ROI
             print(f"Circle at ({x}, {y}) with radius {radius} rejected: insufficient ROI coverage.")
-            # show rejected circle and intersection using matplotlib
+            # save rejected circle and intersection using matplotlib
+            if not Path('Results/rejected_circles').exists():
+                Path('Results/rejected_circles').mkdir(parents=True, exist_ok=True)
             temp_result = self.result.copy()
             cv2.circle(temp_result, (x, y), radius, (0, 0, 255), 3)
             fig, axes = plt.subplots(2, 2, figsize=(10, 10))
@@ -168,7 +174,9 @@ class ImprovedCircleDetector:
             axes[1, 1].set_title('Circle & ROI Intersection')
             axes[1, 1].axis('off')
             plt.tight_layout()
-            plt.show()
+            plt.savefig(Path('Results/rejected_circles') / f"rejected_circle_{x}_{y}_{radius}_{Path(self.image_path).name}")
+            plt.close()
+            print(f"  Saved rejected circle details to: Results/rejected_circles/rejected_circle_{x}_{y}_{radius}_{Path(self.image_path).name}")
             return False
 
         # # Check visual completeness: sample perimeter for continuity
@@ -302,7 +310,7 @@ class ImprovedCircleDetector:
         """
         enhanced = self.preprocess_thermal_image()
 
-        mask = self.define_ROI_thermal(show=False)
+        mask = self.define_ROI_thermal(show=True)
 
         # Use more strict Hough parameters
         circles = cv2.HoughCircles(
@@ -319,11 +327,18 @@ class ImprovedCircleDetector:
 
         if len(circles) > 0:
             # show detected circles before filtering on a copy of result image
+            # save it in Results/intermediate for reference
+            if not Path('Results/intermediate').exists():
+                Path('Results/intermediate').mkdir(parents=True, exist_ok=True)
+
             temp_result = self.result.copy()
             raw_circles = np.uint16(np.around(circles[0]))
             self.draw_circles(raw_circles, color=(255, 0, 0), thickness=3)
-            # display
-            self.visualize_results(raw_circles)
+
+            # save image
+            intermediate_path = Path('Results/intermediate') / f"raw_circles_{Path(self.image_path).name}"
+            cv2.imwrite(str(intermediate_path), self.result)
+            print(f"  Saved intermediate raw circles to: {intermediate_path}")
 
             # reset result image
             self.result = temp_result
@@ -473,7 +488,7 @@ def process_all_images(images_dir='Images', save=True):
 # Example usage
 if __name__ == "__main__":
     # Process single image with visualization
-    process_image('Images/image2.png', save=False, display=True)
+    # process_image('Images/image2.png', save=False, display=True)
 
     # Process all images
-    # process_all_images('Images', save=True)
+    process_all_images('Images', save=True)
