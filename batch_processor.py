@@ -35,7 +35,7 @@ class ImprovedCircleDetector:
         return enhanced
 
 
-    def define_ROI_thermal(self, show=False):
+    def define_ROI_thermal(self, show=True):
         """Enhanced ROI detection for thermal images using multiple approaches."""
         # Method 1: HSV color-based detection (your original approach)
         hsv = cv2.cvtColor(self.original, cv2.COLOR_BGR2HSV)
@@ -120,13 +120,14 @@ class ImprovedCircleDetector:
         return self.define_ROI_thermal(show)
 
 
-    def is_circle_complete(self, x, y, radius, margin=10):
+    def is_circle_complete(self, x, y, radius, mask, margin=10):
         """
         Check if a circle is completely within the image bounds.
 
         Args:
             x, y: Circle center
             radius: Circle radius
+            mask: ROI mask
             margin: Margin from image edges
 
         Returns:
@@ -134,49 +135,81 @@ class ImprovedCircleDetector:
         """
         x = int(x)
         y = int(y)
-        
-        # Check visual completeness: sample perimeter for continuity
-        enhanced = self.preprocess_thermal_image()
-        num_samples = 72  # Sample every 5 degrees
-        angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
-
-        intensities = []
-        for angle in angles:
-            px = int(x + radius * np.cos(angle))
-            py = int(y + radius * np.sin(angle))
-
-            if 0 <= px < self.width and 0 <= py < self.height:
-                # Sample in small region around perimeter point
-                region = enhanced[max(0, py - 2):min(self.height, py + 3),
-                         max(0, px - 2):min(self.width, px + 3)]
-                intensities.append(np.mean(region))
-
-        if len(intensities) < num_samples * 0.9:  # Should have 90%+ valid samples
-            return False
-
-        intensities = np.array(intensities)
-
-        # Check for consistency: no large gaps or obstructions
-        # Complete circles have relatively uniform perimeter intensity
-        std_dev = np.std(intensities)
-        mean_intensity = np.mean(intensities)
-
-        # Detect gaps: if intensity drops significantly, there's an obstruction
-        min_intensity = np.min(intensities)
-        if mean_intensity > 50 and min_intensity < mean_intensity * 0.4:  # 60% drop
-            return False
-
-        # Check for excessive variation (indicates incomplete/obstructed circle)
-        if std_dev > mean_intensity * 0.5:  # More than 50% variation
-            return False
+        radius = int(radius)
         if (x - radius < margin or
             x + radius > self.width - margin or
             y - radius < margin or
             y + radius > self.height - margin):
+            print(f"Circle at ({x}, {y}) with radius {radius} rejected: too close to image edge.")
             return False
+
+        # Check if circle is within ROI
+        circle_mask = np.zeros_like(mask)
+        cv2.circle(circle_mask, (x, y), radius, 255, thickness=-1)
+        intersection = cv2.bitwise_and(mask, circle_mask)
+        circle_area = np.pi * (radius ** 2)
+        intersection_area = cv2.countNonZero(intersection)
+        if intersection_area < circle_area * 0.95:  # At least 95% within ROI
+            print(f"Circle at ({x}, {y}) with radius {radius} rejected: insufficient ROI coverage.")
+            # show rejected circle and intersection using matplotlib
+            temp_result = self.result.copy()
+            cv2.circle(temp_result, (x, y), radius, (0, 0, 255), 3)
+            fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+            axes[0, 0].imshow(cv2.cvtColor(self.original, cv2.COLOR_BGR2RGB))
+            axes[0, 0].set_title('Original Image')
+            axes[0, 0].axis('off')
+            axes[0, 1].imshow(mask, cmap='gray')
+            axes[0, 1].set_title('ROI Mask')
+            axes[0, 1].axis('off')
+            axes[1, 0].imshow(cv2.cvtColor(temp_result, cv2.COLOR_BGR2RGB))
+            axes[1, 0].set_title('Rejected Circle')
+            axes[1, 0].axis('off')
+            axes[1, 1].imshow(intersection, cmap='gray')
+            axes[1, 1].set_title('Circle & ROI Intersection')
+            axes[1, 1].axis('off')
+            plt.tight_layout()
+            plt.show()
+            return False
+
+        # # Check visual completeness: sample perimeter for continuity
+        # enhanced = self.preprocess_thermal_image()
+        # num_samples = 72  # Sample every 5 degrees
+        # angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
+        #
+        # intensities = []
+        # for angle in angles:
+        #     px = int(x + radius * np.cos(angle))
+        #     py = int(y + radius * np.sin(angle))
+        #
+        #     if 0 <= px < self.width and 0 <= py < self.height:
+        #         # Sample in small region around perimeter point
+        #         region = enhanced[max(0, py - 2):min(self.height, py + 3),
+        #                  max(0, px - 2):min(self.width, px + 3)]
+        #         intensities.append(np.mean(region))
+        #
+        # if len(intensities) < num_samples * 0.9:  # Should have 90%+ valid samples
+        #     print(f"Circle at ({x}, {y}) with radius {radius} rejected: insufficient perimeter samples.")
+        #     return False
+        #
+        # intensities = np.array(intensities)
+        #
+        # # Check for consistency: no large gaps or obstructions
+        # # Complete circles have relatively uniform perimeter intensity
+        # std_dev = np.std(intensities)
+        # mean_intensity = np.mean(intensities)
+        #
+        # # Detect gaps: if intensity drops significantly, there's an obstruction
+        # min_intensity = np.min(intensities)
+        # if mean_intensity > 50 and min_intensity < mean_intensity * 0.4:  # 60% drop
+        #     print(f"Circle at ({x}, {y}) with radius {radius} rejected: detected perimeter gap.")
+        #     return False
+        #
+        # # Check for excessive variation (indicates incomplete/obstructed circle)
+        # if std_dev > mean_intensity * 0.5:  # More than 50% variation
+        #     print(f"Circle at ({x}, {y}) with radius {radius} rejected: high perimeter variation.")
+        #     return False
         return True
 
-        return True
 
     def calculate_circle_quality(self, x, y, radius):
         """
@@ -269,27 +302,31 @@ class ImprovedCircleDetector:
         """
         enhanced = self.preprocess_thermal_image()
 
-        mask = self.define_ROI(show=False)
+        mask = self.define_ROI_thermal(show=False)
 
         # Use more strict Hough parameters
         circles = cv2.HoughCircles(
             enhanced,
             cv2.HOUGH_GRADIENT,
             dp=1,
-            minDist=70,  # Increased minimum distance between circles
+            minDist=90,  # Increased minimum distance between circles
             param1=100,   # Higher Canny threshold
             param2=40,    # Higher accumulator threshold
             minRadius=min_radius,
             maxRadius=max_radius
         )
-        if len(circles) > 0:
-            # show raw detected Circles
-            temp_result = self.original.copy()
-            self.draw_circles(np.uint16(np.around(circles[0])), color=(255, 0, 0), thickness=2)
-            self.visualize_results(np.uint16(np.around(circles[0])))
-
-
         print(f"Detected raw circles: {0 if circles is None else len(circles[0])}")
+
+        if len(circles) > 0:
+            # show detected circles before filtering on a copy of result image
+            temp_result = self.result.copy()
+            raw_circles = np.uint16(np.around(circles[0]))
+            self.draw_circles(raw_circles, color=(255, 0, 0), thickness=3)
+            # display
+            self.visualize_results(raw_circles)
+
+            # reset result image
+            self.result = temp_result
 
         if circles is None:
             return []
@@ -303,7 +340,7 @@ class ImprovedCircleDetector:
             x, y, radius = circle
 
             # Check if circle is complete (within image bounds)
-            if not self.is_circle_complete(x, y, radius):
+            if not self.is_circle_complete(x, y, radius, mask):
                 continue
 
             # Calculate quality score
@@ -311,10 +348,11 @@ class ImprovedCircleDetector:
 
             # Keep only high-quality circles
             if quality >= quality_threshold:
+                print(f"Accepted circle at ({x}, {y}) with radius {radius}, quality: {quality:.2f}")
                 valid_circles.append((int(x), int(y), int(radius), quality))
 
         # Remove overlapping circles
-        valid_circles = self.remove_overlapping_circles(valid_circles, overlap_threshold=0.3)
+        # valid_circles = self.remove_overlapping_circles(valid_circles, overlap_threshold=0.3)
 
         # Return without quality scores
         return [(x, y, r) for x, y, r, q in valid_circles]
@@ -435,7 +473,7 @@ def process_all_images(images_dir='Images', save=True):
 # Example usage
 if __name__ == "__main__":
     # Process single image with visualization
-    # process_image('Images/image5.png', save=True, display=True)
+    process_image('Images/image2.png', save=False, display=True)
 
     # Process all images
-    process_all_images('Images', save=True)
+    # process_all_images('Images', save=True)
