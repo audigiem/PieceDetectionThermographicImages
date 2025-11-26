@@ -56,6 +56,22 @@ htmlcov/
 # Documentation
 docs/_build/
 
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+build/
+!report.tex
+!report.pdf
+
 # OS
 Thumbs.db
 
