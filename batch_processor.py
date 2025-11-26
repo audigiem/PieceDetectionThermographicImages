@@ -34,6 +34,92 @@ class ImprovedCircleDetector:
 
         return enhanced
 
+
+    def define_ROI_thermal(self, show=False):
+        """Enhanced ROI detection for thermal images using multiple approaches."""
+        # Method 1: HSV color-based detection (your original approach)
+        hsv = cv2.cvtColor(self.original, cv2.COLOR_BGR2HSV)
+        
+        # Define color range for warm colors (red/orange)
+        lower_warm = np.array([0, 100, 100])
+        upper_warm = np.array([30, 255, 255])
+        mask1 = cv2.inRange(hsv, lower_warm, upper_warm)
+
+        lower_warm2 = np.array([150, 100, 100])
+        upper_warm2 = np.array([180, 255, 255])
+        mask2 = cv2.inRange(hsv, lower_warm2, upper_warm2)
+        
+        hsv_mask = cv2.bitwise_or(mask1, mask2)
+        
+        # Method 2: Intensity-based thresholding on grayscale
+        # Detect the warmest regions based on intensity
+        blur_gray = cv2.GaussianBlur(self.gray, (5, 5), 0)
+        
+        # Use Otsu's thresholding to automatically find optimal threshold
+        _, otsu_mask = cv2.threshold(blur_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Also try adaptive thresholding for local variations
+        adaptive_mask = cv2.adaptiveThreshold(blur_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                            cv2.THRESH_BINARY, 15, 5)
+        
+        # Method 3: Top percentile intensity thresholding
+        # Find pixels in top 30% of intensity values
+        threshold_value = np.percentile(self.gray, 70)  # Top 30% warmest pixels
+        _, percentile_mask = cv2.threshold(self.gray, threshold_value, 255, cv2.THRESH_BINARY)
+        
+        # Combine all methods
+        # Give more weight to HSV-based detection for thermal images
+        combined_mask = cv2.bitwise_or(hsv_mask, percentile_mask)
+        combined_mask = cv2.bitwise_or(combined_mask, otsu_mask)
+        
+        # Clean up the mask with morphological operations
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+        
+        # Fill small holes
+        kernel_fill = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel_fill)
+        
+        # Optional: visualize all masks
+        if show:
+            fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+            
+            axes[0, 0].imshow(hsv_mask, cmap='gray')
+            axes[0, 0].set_title('HSV Color Mask')
+            axes[0, 0].axis('off')
+            
+            axes[0, 1].imshow(otsu_mask, cmap='gray')
+            axes[0, 1].set_title('Otsu Threshold Mask')
+            axes[0, 1].axis('off')
+            
+            axes[0, 2].imshow(percentile_mask, cmap='gray')
+            axes[0, 2].set_title('Top 30% Intensity Mask')
+            axes[0, 2].axis('off')
+            
+            axes[1, 0].imshow(adaptive_mask, cmap='gray')
+            axes[1, 0].set_title('Adaptive Threshold Mask')
+            axes[1, 0].axis('off')
+            
+            axes[1, 1].imshow(combined_mask, cmap='gray')
+            axes[1, 1].set_title('Final Combined ROI Mask')
+            axes[1, 1].axis('off')
+            
+            # Show original for reference
+            axes[1, 2].imshow(cv2.cvtColor(self.original, cv2.COLOR_BGR2RGB))
+            axes[1, 2].set_title('Original Image')
+            axes[1, 2].axis('off')
+            
+            plt.tight_layout()
+            plt.show()
+
+        return combined_mask
+
+    def define_ROI(self, show=False):
+        """Backward compatibility - calls the enhanced thermal ROI method."""
+        return self.define_ROI_thermal(show)
+
+
     def is_circle_complete(self, x, y, radius, margin=10):
         """
         Check if a circle is completely within the image bounds.
@@ -48,11 +134,48 @@ class ImprovedCircleDetector:
         """
         x = int(x)
         y = int(y)
+        
+        # Check visual completeness: sample perimeter for continuity
+        enhanced = self.preprocess_thermal_image()
+        num_samples = 72  # Sample every 5 degrees
+        angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
+
+        intensities = []
+        for angle in angles:
+            px = int(x + radius * np.cos(angle))
+            py = int(y + radius * np.sin(angle))
+
+            if 0 <= px < self.width and 0 <= py < self.height:
+                # Sample in small region around perimeter point
+                region = enhanced[max(0, py - 2):min(self.height, py + 3),
+                         max(0, px - 2):min(self.width, px + 3)]
+                intensities.append(np.mean(region))
+
+        if len(intensities) < num_samples * 0.9:  # Should have 90%+ valid samples
+            return False
+
+        intensities = np.array(intensities)
+
+        # Check for consistency: no large gaps or obstructions
+        # Complete circles have relatively uniform perimeter intensity
+        std_dev = np.std(intensities)
+        mean_intensity = np.mean(intensities)
+
+        # Detect gaps: if intensity drops significantly, there's an obstruction
+        min_intensity = np.min(intensities)
+        if mean_intensity > 50 and min_intensity < mean_intensity * 0.4:  # 60% drop
+            return False
+
+        # Check for excessive variation (indicates incomplete/obstructed circle)
+        if std_dev > mean_intensity * 0.5:  # More than 50% variation
+            return False
         if (x - radius < margin or
             x + radius > self.width - margin or
             y - radius < margin or
             y + radius > self.height - margin):
             return False
+        return True
+
         return True
 
     def calculate_circle_quality(self, x, y, radius):
@@ -146,17 +269,27 @@ class ImprovedCircleDetector:
         """
         enhanced = self.preprocess_thermal_image()
 
+        mask = self.define_ROI(show=False)
+
         # Use more strict Hough parameters
         circles = cv2.HoughCircles(
             enhanced,
             cv2.HOUGH_GRADIENT,
             dp=1,
-            minDist=80,  # Increased minimum distance between circles
+            minDist=70,  # Increased minimum distance between circles
             param1=100,   # Higher Canny threshold
             param2=40,    # Higher accumulator threshold
             minRadius=min_radius,
             maxRadius=max_radius
         )
+        if len(circles) > 0:
+            # show raw detected Circles
+            temp_result = self.original.copy()
+            self.draw_circles(np.uint16(np.around(circles[0])), color=(255, 0, 0), thickness=2)
+            self.visualize_results(np.uint16(np.around(circles[0])))
+
+
+        print(f"Detected raw circles: {0 if circles is None else len(circles[0])}")
 
         if circles is None:
             return []
@@ -302,7 +435,7 @@ def process_all_images(images_dir='Images', save=True):
 # Example usage
 if __name__ == "__main__":
     # Process single image with visualization
-    # process_image('Images/image1.png', save=True, display=True)
+    # process_image('Images/image5.png', save=True, display=True)
 
     # Process all images
     process_all_images('Images', save=True)

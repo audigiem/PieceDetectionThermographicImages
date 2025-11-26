@@ -1,0 +1,50 @@
+======================================================================
+ENHANCED CIRCLE DETECTION REPORT
+======================================================================
+
+Generated: 2025-11-26T13:22:30.764830
+Total images processed: 7
+Successful: 7
+Failed: 0
+Total complete circles detected: 9
+
+======================================================================
+DETAILED RESULTS
+======================================================================
+
+File: image1.png
+  Complete circles detected: 3
+  Mean radius: 141.67 px
+  Std radius: 0.94 px
+  Radius range: [141, 143] px
+
+File: image2.png
+  Complete circles detected: 1
+  Mean radius: 84.00 px
+  Std radius: 0.00 px
+  Radius range: [84, 84] px
+
+File: image3.png
+  Complete circles detected: 0
+
+File: image4.png
+  Complete circles detected: 0
+
+File: image5.png
+  Complete circles detected: 2
+  Mean radius: 161.50 px
+  Std radius: 4.50 px
+  Radius range: [157, 166] px
+
+File: image6.png
+  Complete circles detected: 2
+  Mean radius: 164.00 px
+  Std radius: 2.00 px
+  Radius range: [162, 166] px
+
+File: image7.png
+  Complete circles detected: 1
+  Mean radius: 164.00 px
+  Std radius: 0.00 px
+  Radius range: [164, 164] px
+
