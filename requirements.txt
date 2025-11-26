@@ -1,6 +1,15 @@
-opencv-python>=4.5.0
-numpy>=1.19.0
-matplotlib>=3.3.0
-scipy>=1.5.0
-PyPDF2>=3.0.0
+# Core dependencies for circle detection in thermal images
+opencv-python>=4.5.0     # Computer vision and image processing
+numpy>=1.19.0            # Numerical operations and arrays
+matplotlib>=3.3.0        # Visualization and plotting
+
+# Optional dependencies
+scipy>=1.5.0             # Scientific computing utilities
+PyPDF2>=3.0.0            # PDF reading (for documentation)
+
+# Development dependencies (optional)
+# pytest>=6.0.0          # Testing framework
+# black>=21.0            # Code formatting
+# pylint>=2.0.0          # Code linting
+
 

@@ -1,78 +1,198 @@
 {
-  "timestamp": "2025-11-26T13:22:30.764830",
-  "total_images": 7,
-  "successful": 7,
-  "failed": 0,
-  "total_circles_detected": 9,
-  "results": [
+  "summary": {
+    "total_images": 7,
+    "total_circles_detected": 13,
+    "average_circles_per_image": 1.8571428571428572,
+    "overall_statistics": {
+      "mean_radius": 141.76923076923077,
+      "median_radius": 142.0,
+      "min_radius": 80,
+      "max_radius": 175,
+      "std_radius": 28.951295563288692
+    }
+  },
+  "images": [
     {
       "filename": "image1.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image1.png",
       "circle_count": 3,
-      "mean_radius": 141.66666666666666,
-      "std_radius": 0.9428090415820634,
-      "min_radius": 141,
-      "max_radius": 143,
-      "circles": 3
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 698,
+          "center_y": 482,
+          "radius": 142,
+          "area": 63347.07426698459
+        },
+        {
+          "id": 2,
+          "center_x": 430,
+          "center_y": 390,
+          "radius": 141,
+          "area": 62458.00354601867
+        },
+        {
+          "id": 3,
+          "center_x": 182,
+          "center_y": 280,
+          "radius": 117,
+          "area": 43005.26183499068
+        }
+      ],
+      "statistics": {
+        "mean_radius": 133.33333333333334,
+        "median_radius": 141.0,
+        "min_radius": 117,
+        "max_radius": 142,
+        "std_radius": 11.556623882239812
+      }
     },
     {
       "filename": "image2.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image2.png",
-      "circle_count": 1,
-      "mean_radius": 84.0,
-      "std_radius": 0.0,
-      "min_radius": 84,
-      "max_radius": 84,
-      "circles": 1
+      "circle_count": 2,
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 242,
+          "center_y": 280,
+          "radius": 89,
+          "area": 24884.555409084755
+        },
+        {
+          "id": 2,
+          "center_x": 80,
+          "center_y": 218,
+          "radius": 80,
+          "area": 20106.192982974677
+        }
+      ],
+      "statistics": {
+        "mean_radius": 84.5,
+        "median_radius": 84.5,
+        "min_radius": 80,
+        "max_radius": 89,
+        "std_radius": 4.5
+      }
     },
     {
       "filename": "image3.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image3.png",
-      "circle_count": 0,
-      "circles": 0
+      "circle_count": 2,
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 470,
+          "center_y": 590,
+          "radius": 170,
+          "area": 90792.02768874502
+        },
+        {
+          "id": 2,
+          "center_x": 186,
+          "center_y": 472,
+          "radius": 140,
+          "area": 61575.216010359945
+        }
+      ],
+      "statistics": {
+        "mean_radius": 155.0,
+        "median_radius": 155.0,
+        "min_radius": 140,
+        "max_radius": 170,
+        "std_radius": 15.0
+      }
     },
     {
       "filename": "image4.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image4.png",
-      "circle_count": 0,
-      "circles": 0
+      "circle_count": 1,
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 386,
+          "center_y": 656,
+          "radius": 175,
+          "area": 96211.2750161874
+        }
+      ],
+      "statistics": {
+        "mean_radius": 175.0,
+        "median_radius": 175.0,
+        "min_radius": 175,
+        "max_radius": 175,
+        "std_radius": 0.0
+      }
     },
     {
       "filename": "image5.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image5.png",
       "circle_count": 2,
-      "mean_radius": 161.5,
-      "std_radius": 4.5,
-      "min_radius": 157,
-      "max_radius": 166,
-      "circles": 2
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 488,
+          "center_y": 598,
+          "radius": 168,
+          "area": 88668.31105491833
+        },
+        {
+          "id": 2,
+          "center_x": 200,
+          "center_y": 492,
+          "radius": 166,
+          "area": 86569.72716232034
+        }
+      ],
+      "statistics": {
+        "mean_radius": 167.0,
+        "median_radius": 167.0,
+        "min_radius": 166,
+        "max_radius": 168,
+        "std_radius": 1.0
+      }
     },
     {
       "filename": "image6.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image6.png",
       "circle_count": 2,
-      "mean_radius": 164.0,
-      "std_radius": 2.0,
-      "min_radius": 162,
-      "max_radius": 166,
-      "circles": 2
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 472,
+          "center_y": 588,
+          "radius": 159,
+          "area": 79422.60387540355
+        },
+        {
+          "id": 2,
+          "center_x": 186,
+          "center_y": 470,
+          "radius": 140,
+          "area": 61575.216010359945
+        }
+      ],
+      "statistics": {
+        "mean_radius": 149.5,
+        "median_radius": 149.5,
+        "min_radius": 140,
+        "max_radius": 159,
+        "std_radius": 9.5
+      }
     },
     {
       "filename": "image7.png",
-      "status": "success",
-      "output_path": "Results/images/detected_image7.png",
       "circle_count": 1,
-      "mean_radius": 164.0,
-      "std_radius": 0.0,
-      "min_radius": 164,
-      "max_radius": 164,
-      "circles": 1
+      "circles": [
+        {
+          "id": 1,
+          "center_x": 180,
+          "center_y": 528,
+          "radius": 156,
+          "area": 76453.7988177612
+        }
+      ],
+      "statistics": {
+        "mean_radius": 156.0,
+        "median_radius": 156.0,
+        "min_radius": 156,
+        "max_radius": 156,
+        "std_radius": 0.0
+      }
     }
   ]
 }

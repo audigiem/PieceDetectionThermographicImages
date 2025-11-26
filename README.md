@@ -1,277 +1,239 @@
-# Circle Detection in Thermal Images - Assignment 1
+# Thermal Image Circle Detection
 
-This project implements multiple computer vision techniques to detect and delineate circular objects in thermal imagery.
+A comprehensive Python application for detecting and analyzing circular patterns in thermal images using computer vision techniques.
 
-## 📋 Overview
+## Features
 
-The assignment focuses on identifying complete circular objects in thermal images using various image processing and computer vision techniques including:
-- Hough Circle Transform
-- Contour-based detection
-- Edge detection with circle fitting
-- Blob detection
-- Watershed segmentation
-- Ensemble methods combining multiple techniques
+- **Robust Circle Detection**: Advanced Hough Circle Transform with intelligent filtering
+- **Multi-method ROI Detection**: Combines HSV color-based, intensity-based, and percentile-based approaches
+- **Quality Assessment**: Evaluates circle completeness and edge quality
+- **Batch Processing**: Process multiple images automatically
+- **Comprehensive Reporting**: 
+  - JSON format for machine-readable results
+  - Human-readable text reports
+  - Combined visualization of all detections
+  - **Separate statistical charts** (no overlapping!)
+    - Circle count bar chart
+    - Radius distribution histogram
+    - Radius box plot by image
+    - Summary statistics table
+- **Configurable Parameters**: Centralized `config.py` for easy parameter tuning
 
-## 🚀 Quick Start
-
-### Installation
-
-1. Install required packages:
-```bash
-pip install -r requirements.txt
-```
-
-### Running the Code
-
-#### Option 1: Batch Process All Images (Recommended)
-Process all images in the `Images` folder automatically:
-```bash
-python batch_processor.py
-```
-
-This will:
-- Process all images in the Images directory
-- Save detected circles with annotations
-- Generate comprehensive reports (JSON and text)
-- Create comparison visualizations
-- Generate statistical analysis plots
-
-#### Option 2: Single Image Processing
-Process individual images with the basic detector:
-```bash
-python circle_detection.py
-```
-
-Or use the advanced detector:
-```bash
-python advanced_circle_detection.py
-```
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 Assignment 1/
-├── circle_detection.py          # Basic circle detection (Hough + Contours)
-├── advanced_circle_detection.py # Advanced methods (Canny, Blob, Watershed, Ensemble)
-├── batch_processor.py           # Batch processing script
-├── requirements.txt             # Python dependencies
-├── README.md                    # This file
-├── Images/                      # Input thermal images
+├── main.py                    # Main entry point for batch processing
+├── circle_detector.py         # Core circle detection logic
+├── visualization.py           # Visualization and reporting functions
+├── config.py                  # Centralized configuration parameters
+├── batch_processor.py         # Original monolithic implementation (deprecated)
+├── requirements.txt           # Python dependencies
+├── Images/                    # Input thermal images
 │   ├── image1.png
 │   ├── image2.png
 │   └── ...
-└── Results/                     # Generated after processing
-    ├── images/                  # Detected images
-    ├── visualizations/          # Comparison plots
-    ├── detection_report.json    # Detailed JSON report
-    └── detection_report.txt     # Human-readable report
+└── Results/                   # Output directory (auto-generated)
+    ├── visualizations/
+    │   ├── all_results.png          # Combined detection results
+    │   ├── circle_counts.png        # Bar chart of circle counts
+    │   ├── radius_distribution.png  # Histogram of radii
+    │   ├── radius_boxplot.png       # Box plot by image
+    │   └── summary_table.png        # Summary statistics table
+    ├── detection_report.json        # Machine-readable results
+    ├── detection_report.txt         # Human-readable report
+    ├── images/                      # Individual detection results
+    ├── masks/                       # ROI mask visualizations
+    ├── intermediate/                # Raw circle detections (before filtering)
+    └── rejected_circles/            # Circles filtered out with reasons
 ```
 
-## 🔧 Core Components
+## Installation
 
-### 1. circle_detection.py
-Basic circle detection implementation with two main methods:
+1. **Clone or download this project**
 
-**CircleDetector Class:**
-- `detect_circles_hough()`: Uses Hough Circle Transform
-- `detect_circles_contours()`: Contour-based detection with circularity filtering
-- `preprocess_image()`: Image enhancement (Gaussian blur, CLAHE)
-- `draw_circles()`: Visualize detected circles
-- `get_circle_statistics()`: Calculate detection statistics
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-**Usage Example:**
+   Required packages:
+   - opencv-python
+   - numpy
+   - matplotlib
+
+## Usage
+
+### Process All Images (Recommended)
+
+Run the main script to process all images in the `Images/` directory:
+
+```bash
+python main.py
+```
+
+This will:
+1. Process all images in the `Images/` directory
+2. Detect complete circles in each image
+3. Save individual detection results
+4. Generate comprehensive reports and visualizations
+
+### Process a Single Image
+
+To process a single image with visualization:
+
 ```python
-from circle_detection import CircleDetector
+from main import process_image
 
-detector = CircleDetector("Images/image1.png")
-circles = detector.detect_circles_hough()
-detector.draw_circles(circles)
-detector.save_result("output.png")
-detector.display_results(circles)
+detector, circles = process_image('Images/image1.png', save=True, display=True)
 ```
 
-### 2. advanced_circle_detection.py
-Advanced detection techniques for challenging cases:
+### Custom Parameters
 
-**AdvancedCircleDetector Class:**
-- `detect_with_canny_and_fitting()`: Edge detection + ellipse fitting
-- `detect_with_blob_detector()`: SimpleBlobDetector with circularity filters
-- `detect_with_watershed()`: Watershed segmentation
-- `ensemble_detection()`: Combines multiple methods for robust detection
-- `enhance_thermal_image()`: Enhanced preprocessing for thermal images
+Adjust detection parameters for your specific needs:
 
-**Usage Example:**
 ```python
-from advanced_circle_detection import AdvancedCircleDetector
+from circle_detector import ImprovedCircleDetector
 
-detector = AdvancedCircleDetector("Images/image1.png")
-circles = detector.ensemble_detection(methods=['hough', 'canny', 'blob'])
-detector.draw_circles(circles)
-```
-
-### 3. batch_processor.py
-Comprehensive batch processing with reporting:
-
-**BatchProcessor Class:**
-- `process_all_images()`: Process entire image directory
-- `process_single_image()`: Process with automatic method selection
-- `generate_report()`: Create JSON and text reports
-- `create_comparison_visualization()`: Generate comparison plots
-- Statistical analysis and visualization
-
-## 🎯 Detection Methods
-
-### Hough Circle Transform
-- **Pros**: Fast, robust to noise, works well for perfect circles
-- **Cons**: Requires parameter tuning, may miss incomplete circles
-- **Best for**: Clean thermal images with distinct circular objects
-
-### Contour-based Detection
-- **Pros**: Detects irregular circles, flexible shape matching
-- **Cons**: Sensitive to noise and thresholding
-- **Best for**: Images with clear boundaries
-
-### Edge Detection + Fitting
-- **Pros**: Good for partially occluded circles
-- **Cons**: Computationally intensive
-- **Best for**: Complex scenes with overlapping objects
-
-### Blob Detection
-- **Pros**: Excellent circularity filtering
-- **Cons**: Requires good contrast
-- **Best for**: High-contrast thermal spots
-
-### Ensemble Method
-- **Pros**: Most robust, combines strengths of all methods
-- **Cons**: Slower processing time
-- **Best for**: Production use, varied image conditions
-
-## 📊 Output
-
-### Detection Results
-- **Annotated Images**: Circles marked with green outlines and red centers
-- **Numbered Labels**: Each circle labeled for reference
-- **Statistics**: Count, mean radius, radius range
-
-### Reports
-- **JSON Report**: Machine-readable detailed statistics
-- **Text Report**: Human-readable summary
-- **Visualizations**: Comparison grids and statistical plots
-
-### Example Statistics:
-```
-File: image1.png
-  Method: hough
-  Circles detected: 5
-  Mean radius: 32.4 px
-  Std radius: 5.8 px
-  Radius range: [25, 42] px
-```
-
-## 🔬 Technical Details
-
-### Image Preprocessing
-1. **Gaussian Blur**: Noise reduction (kernel size: 9x9)
-2. **CLAHE**: Contrast Limited Adaptive Histogram Equalization
-3. **Bilateral Filter**: Edge-preserving smoothing (for advanced methods)
-4. **Morphological Operations**: Closing and opening to clean binary masks
-
-### Parameter Optimization
-Key parameters for Hough Transform:
-- `dp=1`: Inverse ratio of accumulator resolution
-- `minDist=30`: Minimum distance between circle centers
-- `param1=50`: Upper Canny threshold
-- `param2=25`: Accumulator threshold
-- `minRadius=5`, `maxRadius=200`: Size constraints
-
-### Circle Validation
-Circularity metric: `C = 4π × Area / Perimeter²`
-- Perfect circle: C = 1.0
-- Acceptance threshold: C > 0.7
-
-## 💡 Tips for Best Results
-
-1. **For noisy images**: Use ensemble detection
-2. **For low contrast**: Increase CLAHE clip limit
-3. **For small circles**: Decrease `minRadius` parameter
-4. **For large circles**: Increase `maxRadius` parameter
-5. **For overlapping circles**: Adjust `minDist` parameter
-
-## 🛠️ Customization
-
-### Adjust Detection Parameters
-Edit the parameters in `batch_processor.py`:
-```python
-circles = detector.detect_circles_hough(
-    min_dist=30,      # Increase to avoid close detections
-    param1=50,        # Edge detection sensitivity
-    param2=25,        # Circle detection threshold (lower = more circles)
-    min_radius=5,     # Minimum circle size
-    max_radius=200    # Maximum circle size
+detector = ImprovedCircleDetector('Images/image1.png')
+circles = detector.detect_complete_circles(
+    min_radius=50,           # Minimum circle radius in pixels
+    max_radius=200,          # Maximum circle radius in pixels
+    quality_threshold=0.1    # Minimum quality score (0-1)
 )
 ```
 
-### Choose Detection Method
-In `batch_processor.py`, change the method parameter:
-```python
-processor.process_all_images(method='auto')  # Options: 'auto', 'hough', 'advanced'
+**Note**: Default parameters are defined in `config.py`. You can modify them there for global changes or pass them as arguments for per-call customization.
+
+## Detection Algorithm
+
+The circle detection process consists of several stages:
+
+### 1. Preprocessing
+- Gaussian blur to reduce noise
+- CLAHE (Contrast Limited Adaptive Histogram Equalization) for contrast enhancement
+
+### 2. ROI (Region of Interest) Detection
+Combines three complementary approaches:
+- **HSV color-based**: Detects warm colors (red/orange) typical in thermal images
+- **Intensity-based**: Uses Otsu's and adaptive thresholding
+- **Percentile-based**: Identifies the warmest 30% of pixels
+
+### 3. Circle Detection
+- Hough Circle Transform with strict parameters
+- Detects potential circular patterns
+
+### 4. Filtering & Validation
+Circles are filtered based on:
+- **Boundary check**: Must be completely within image bounds
+- **ROI coverage**: At least 95% must be within detected ROI
+- **Edge quality**: Evaluates edge strength along circle perimeter
+
+### 5. Quality Scoring
+Each circle receives a quality score based on:
+- Edge continuity around the perimeter
+- Sampling 36 points around the circle
+- Checking for edge presence at each point
+
+## Output Files
+
+### Visualizations
+All visualizations are saved as separate files to avoid overlapping:
+- **all_results.png**: Grid view of all detection results
+- **circle_counts.png**: Bar chart showing circle count per image
+- **radius_distribution.png**: Histogram of radius distribution across all circles
+- **radius_boxplot.png**: Box plot showing radius distribution by image
+- **summary_table.png**: Summary statistics table
+
+### Reports
+- **detection_report.json**: Structured data for programmatic access
+- **detection_report.txt**: Human-readable detailed report
+
+### Debug Information
+- **masks/**: ROI detection masks showing intermediate steps
+- **intermediate/**: Raw circle detections before filtering
+- **rejected_circles/**: Visual explanation of why circles were filtered out
+
+## Parameters Reference
+
+All default parameters are defined in `config.py` for easy centralized configuration.
+
+### Circle Detection Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `min_radius` | 50 | Minimum circle radius in pixels |
+| `max_radius` | 200 | Maximum circle radius in pixels |
+| `quality_threshold` | 0.1 | Minimum quality score (0-1) |
+| `minDist` | 90 | Minimum distance between circle centers |
+| `param1` | 100 | Canny edge detection threshold |
+| `param2` | 40 | Accumulator threshold for circle detection |
+
+### Filtering Parameters
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `margin` | -10 | Margin from image edges (negative allows near-edge) |
+| `roi_coverage` | 0.95 | Minimum ROI coverage ratio (95%) |
+| `edge_samples` | 36 | Number of points sampled around perimeter |
+
+**To modify parameters globally**, edit `config.py`. Parameters can also be overridden per-call by passing them as arguments.
+
+## Troubleshooting
+
+### No circles detected
+- Try lowering `quality_threshold` in `config.py` (e.g., 0.05)
+- Adjust `min_radius` and `max_radius` based on expected circle sizes
+- Check ROI masks in `Results/masks/` to verify ROI detection
+
+### Too many false positives
+- Increase `quality_threshold` in `config.py` (e.g., 0.3)
+- Increase `param2` for stricter Hough detection
+- Increase `minDist` to prevent overlapping detections
+
+### Circles near edges rejected
+- Adjust `margin` parameter in `config.py` (DETECTION_PARAMS)
+- Lower `roi_coverage` threshold (but keep above 0.8)
+
+### Modify parameters
+Edit `config.py` to change default parameters globally, or pass them as arguments for per-call customization.
+
+## Development
+
+### Running Tests
+```bash
+# Process single image for testing
+python -c "from main import process_image; process_image('Images/image1.png', display=True)"
 ```
 
-## 📈 Performance
+### Extending Functionality
+The modular structure makes it easy to extend:
+- **circle_detector.py**: Modify detection algorithms
+- **visualization.py**: Add new visualizations or export formats
+- **main.py**: Customize batch processing workflow
 
-Typical processing times (per image):
-- **Hough Transform**: 0.1-0.3 seconds
-- **Contour Detection**: 0.2-0.4 seconds
-- **Ensemble Method**: 0.5-1.0 seconds
+## Technical Details
 
-## 🐛 Troubleshooting
+### Dependencies
+- **OpenCV**: Image processing and circle detection
+- **NumPy**: Numerical operations and array handling
+- **Matplotlib**: Visualization and plotting
 
-**No circles detected:**
-- Try lowering `param2` parameter
-- Check image contrast
-- Verify image is not corrupted
+### Performance
+- Processing time: ~2-5 seconds per image (depending on size and complexity)
+- Memory usage: ~50-100 MB per image
 
-**Too many false positives:**
-- Increase `param2` parameter
-- Increase `minDist` parameter
-- Adjust circularity threshold
+## License
 
-**Slow processing:**
-- Use 'hough' method instead of 'auto'
-- Reduce `maxRadius` if circles are small
+This project is provided for educational purposes.
 
-## 📝 Assignment Deliverables
+## Author
 
-This implementation provides:
-1. ✅ Circle detection and delineation
-2. ✅ Multiple detection methods
-3. ✅ Batch processing capability
-4. ✅ Comprehensive reporting
-5. ✅ Visual comparison
-6. ✅ Statistical analysis
-7. ✅ Well-documented code
+Created for Advanced Vision Processing course (AVPR) - FIB
 
-## 🎓 Learning Objectives Covered
+## Acknowledgments
 
-- Image preprocessing techniques
-- Circle detection algorithms
-- Contour analysis
-- Feature extraction
-- Performance evaluation
-- Visualization techniques
-
-## 📚 References
-
-- OpenCV Documentation: https://docs.opencv.org/
-- Hough Circle Transform: https://en.wikipedia.org/wiki/Circle_Hough_Transform
-- Computer Vision: Algorithms and Applications (Szeliski)
-
-## 👨‍💻 Author
-
-Assignment 1 - AVPR Course
-FIB - Computer Vision and Pattern Recognition
-
----
-
-**Note**: Ensure thermal images are placed in the `Images/` directory before running the scripts.
+- Uses OpenCV's Hough Circle Transform
+- Inspired by thermal imaging analysis techniques
+- CLAHE enhancement for improved contrast in thermal images
 

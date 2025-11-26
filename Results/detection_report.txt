@@ -1,50 +1,109 @@
-======================================================================
-ENHANCED CIRCLE DETECTION REPORT
-======================================================================
+================================================================================
+CIRCLE DETECTION REPORT
+================================================================================
 
-Generated: 2025-11-26T13:22:30.764830
-Total images processed: 7
-Successful: 7
-Failed: 0
-Total complete circles detected: 9
+Total Images Processed: 7
+Total Circles Detected: 13
+Average Circles per Image: 1.86
 
-======================================================================
-DETAILED RESULTS
-======================================================================
+Overall Radius Statistics:
+  Mean: 141.8 px
+  Median: 142.0 px
+  Min: 80 px
+  Max: 175 px
+  Std Dev: 29.0 px
 
-File: image1.png
-  Complete circles detected: 3
-  Mean radius: 141.67 px
-  Std radius: 0.94 px
-  Radius range: [141, 143] px
+--------------------------------------------------------------------------------
+DETAILED RESULTS BY IMAGE
+--------------------------------------------------------------------------------
 
-File: image2.png
-  Complete circles detected: 1
-  Mean radius: 84.00 px
-  Std radius: 0.00 px
-  Radius range: [84, 84] px
+Image: image1.png
+Circles Detected: 3
 
-File: image3.png
-  Complete circles detected: 0
+Detected Circles:
+  1. Center: (698, 482), Radius: 142 px, Area: 63347.1 px²
+  2. Center: (430, 390), Radius: 141 px, Area: 62458.0 px²
+  3. Center: (182, 280), Radius: 117 px, Area: 43005.3 px²
 
-File: image4.png
-  Complete circles detected: 0
+Radius Statistics:
+  Mean: 133.3 px
+  Range: [117, 142] px
 
-File: image5.png
-  Complete circles detected: 2
-  Mean radius: 161.50 px
-  Std radius: 4.50 px
-  Radius range: [157, 166] px
+--------------------------------------------------------------------------------
 
-File: image6.png
-  Complete circles detected: 2
-  Mean radius: 164.00 px
-  Std radius: 2.00 px
-  Radius range: [162, 166] px
+Image: image2.png
+Circles Detected: 2
 
-File: image7.png
-  Complete circles detected: 1
-  Mean radius: 164.00 px
-  Std radius: 0.00 px
-  Radius range: [164, 164] px
+Detected Circles:
+  1. Center: (242, 280), Radius: 89 px, Area: 24884.6 px²
+  2. Center: (80, 218), Radius: 80 px, Area: 20106.2 px²
+
+Radius Statistics:
+  Mean: 84.5 px
+  Range: [80, 89] px
+
+--------------------------------------------------------------------------------
+
+Image: image3.png
+Circles Detected: 2
+
+Detected Circles:
+  1. Center: (470, 590), Radius: 170 px, Area: 90792.0 px²
+  2. Center: (186, 472), Radius: 140 px, Area: 61575.2 px²
+
+Radius Statistics:
+  Mean: 155.0 px
+  Range: [140, 170] px
+
+--------------------------------------------------------------------------------
+
+Image: image4.png
+Circles Detected: 1
+
+Detected Circles:
+  1. Center: (386, 656), Radius: 175 px, Area: 96211.3 px²
+
+Radius Statistics:
+  Mean: 175.0 px
+  Range: [175, 175] px
+
+--------------------------------------------------------------------------------
+
+Image: image5.png
+Circles Detected: 2
+
+Detected Circles:
+  1. Center: (488, 598), Radius: 168 px, Area: 88668.3 px²
+  2. Center: (200, 492), Radius: 166 px, Area: 86569.7 px²
+
+Radius Statistics:
+  Mean: 167.0 px
+  Range: [166, 168] px
+
+--------------------------------------------------------------------------------
+
+Image: image6.png
+Circles Detected: 2
+
+Detected Circles:
+  1. Center: (472, 588), Radius: 159 px, Area: 79422.6 px²
+  2. Center: (186, 470), Radius: 140 px, Area: 61575.2 px²
+
+Radius Statistics:
+  Mean: 149.5 px
+  Range: [140, 159] px
+
+--------------------------------------------------------------------------------
+
+Image: image7.png
+Circles Detected: 1
+
+Detected Circles:
+  1. Center: (180, 528), Radius: 156 px, Area: 76453.8 px²
+
+Radius Statistics:
+  Mean: 156.0 px
+  Range: [156, 156] px
+
+--------------------------------------------------------------------------------
 
